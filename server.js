@@ -13,6 +13,11 @@ app.post('/api/leads', (req, res) => {
   if (!p || required.some(k => typeof p[k] !== 'string' || !p[k].trim() || p[k].length > 300) || p.consent !== true || !/^\+947\d{8}$/.test(p.whatsapp_number)) {
     return res.status(400).json({ error: 'Please check the required fields and WhatsApp number.' });
   }
+  if (process.env.VERCEL) {
+    return require('./integrations/cloud-leads')(p)
+      .then(id => res.status(201).json({ ok: true, id }))
+      .catch(() => res.status(503).json({ error: 'Unable to save your request. Please try again.' }));
+  }
   const save = async () => {
     const book = await readWorkbook(workbookPath);
     const sheet = book.getWorksheet('Leads');
