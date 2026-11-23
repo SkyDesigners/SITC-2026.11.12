@@ -13,7 +13,7 @@ function doPost(e) {
     var required = fields.filter(function(k){return k !== 'email';});
     if (!p || p.consent !== true || required.some(function(k){return typeof p[k] !== 'string' || !p[k].trim() || p[k].length>300;}) || !/^\+947\d{8}$/.test(p.whatsapp_number)) return reply({ok:false});
     lock.waitLock(15000);
-    var sheet = SpreadsheetApp.openById(props.getProperty('SPREADSHEET_ID')).getSheetByName('Leads');
+    var sheet = SpreadsheetApp.openById(props.getProperty('SPREADSHEET_ID')).getSheetByName('Website Leads');
     if (!sheet || sheet.getRange('C1').getValue() !== 'Full Name') throw new Error('Wrong tracker');
     var names = sheet.getRange(2,3,Math.max(sheet.getLastRow()-1,1),1).getValues();
     var row = 2;
