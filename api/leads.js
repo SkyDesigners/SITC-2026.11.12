@@ -7,9 +7,11 @@ module.exports = async (req, res) => {
   const p = req.body;
   const required = ['full_name','whatsapp_number','district','age','qualification','study_mode','programme','start_timeline','funding','preferred_language'];
   if (!p || typeof p !== 'object' || required.some(k => typeof p[k] !== 'string' || !p[k].trim() || p[k].length > 300) || p.consent !== true || !/^\+947\d{8}$/.test(p.whatsapp_number) || typeof p.event_id !== 'string' || !/^[\w-]{1,100}$/.test(p.event_id)) return res.status(400).json({error:'Please check the required fields'});
-  if (!process.env.META_CAPI_TOKEN || !/^\d+$/.test(process.env.META_PIXEL_ID || '')) return res.status(503).json({error:'Tracking is not configured'});
+  const capiReady = Boolean(process.env.META_CAPI_TOKEN) && /^\d+$/.test(process.env.META_PIXEL_ID || '');
   let id;
-  try { id = await save(p); } catch { return res.status(503).json({error:'Unable to save your request. Please try again.'}); }
+  try { id = await save(p); } catch (error) { console.error('Lead save failed:', error && error.message); return res.status(503).json({error:'Unable to save your request. Please try again.'}); }
+// Meta tracking must never block a saved lead.
+if (!capiReady) { console.error('Meta CAPI not configured; lead saved without server event'); return res.status(201).json({ok:true,id}); }
   const user_data = {ph:[hash(p.whatsapp_number.replace(/\D/g,''))], client_user_agent: String(req.headers['user-agent'] || '').slice(0,500)};
   if (p.email && typeof p.email === 'string') user_data.em = [hash(p.email.trim().toLowerCase())];
   const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
