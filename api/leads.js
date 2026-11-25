@@ -6,7 +6,9 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return res.status(405).json({error:'Method not allowed'}); }
   const p = req.body;
   const required = ['full_name','whatsapp_number','district','age','qualification','study_mode','programme','start_timeline','funding','preferred_language'];
-  if (!p || typeof p !== 'object' || required.some(k => typeof p[k] !== 'string' || !p[k].trim() || p[k].length > 300) || p.consent !== true || !/^\+947\d{8}$/.test(p.whatsapp_number) || typeof p.event_id !== 'string' || !/^[\w-]{1,100}$/.test(p.event_id)) return res.status(400).json({error:'Please check the required fields'});
+  if (!p || typeof p !== 'object' || required.some(k => typeof p[k] !== 'string' || !p[k].trim() || p[k].length > 300) || p.consent !== true || !/^\+947\d{8}$/.test(p.whatsapp_number)) return res.status(400).json({error:'Please check the required fields'});
+// The form may not send event_id; generate one so the lead is never rejected for tracking reasons.
+const eventId = typeof p.event_id === 'string' && /^[\w-]{1,100}$/.test(p.event_id) ? p.event_id : crypto.randomUUID();
   const capiReady = Boolean(process.env.META_CAPI_TOKEN) && /^\d+$/.test(process.env.META_PIXEL_ID || '');
   let id;
   try { id = await save(p); } catch (error) { console.error('Lead save failed:', error && error.message); return res.status(503).json({error:'Unable to save your request. Please try again.'}); }
@@ -18,7 +20,7 @@ if (!capiReady) { console.error('Meta CAPI not configured; lead saved without se
   if (ip) user_data.client_ip_address = ip;
   if (typeof p.fbp === 'string' && p.fbp.length < 256 && p.fbp) user_data.fbp = p.fbp;
   if (typeof p.fbc === 'string' && p.fbc.length < 256 && p.fbc) user_data.fbc = p.fbc;
-  const event = {event_name:'Lead',event_time:Math.floor(Date.now()/1000),event_id:p.event_id,action_source:'website',event_source_url:typeof p.page_url === 'string' ? p.page_url.split('?')[0] : 'https://malaysia.sitc.lk/',user_data,custom_data:{content_name:p.programme}};
+  const event = {event_name:'Lead',event_time:Math.floor(Date.now()/1000),event_id:eventId,action_source:'website',event_source_url:typeof p.page_url === 'string' ? p.page_url.split('?')[0] : 'https://malaysia.sitc.lk/',user_data,custom_data:{content_name:p.programme}};
   const body = {data:[event],access_token:process.env.META_CAPI_TOKEN};
   if (process.env.META_TEST_EVENT_CODE) body.test_event_code = process.env.META_TEST_EVENT_CODE;
   try {
